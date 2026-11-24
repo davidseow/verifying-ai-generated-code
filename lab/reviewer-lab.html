@@ -1,0 +1,403 @@
+<title>Reviewer Calibration Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Space+Grotesk:wght@500;600&display=swap">
+<style>
+/* Layout: a single working column like a PR review pane; tabs as a sticky toolbar, panels as diff-style blocks */
+:root{
+  --bg:#f6f7f9; --surface:#ffffff; --sunk:#eef0f4; --fg:#1b2130; --muted:#5b6478; --line:#d9dde5;
+  --accent:#2f5bd3; --accent-ink:#ffffff;
+  --imp:#c62f2f; --nit:#a87600; --pre:#7a4bc2; --drop:#6b7280; --ok:#1f8a4c;
+  --imp-bg:#fbeaea; --nit-bg:#fbf3dc; --pre-bg:#f1eafb; --ok-bg:#e5f4ec;
+  --f-display:"Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --f-body:"IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12151c; --surface:#1a1e27; --sunk:#232836; --fg:#e6e9f0; --muted:#9aa3b6; --line:#2f3545;
+  --accent:#7c9cff; --accent-ink:#0d1220;
+  --imp:#ff7b7b; --nit:#e3b341; --pre:#b896ff; --drop:#9aa3b6; --ok:#4cc38a;
+  --imp-bg:#3a1f22; --nit-bg:#3a3018; --pre-bg:#2c2340; --ok-bg:#183326; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12151c; --surface:#1a1e27; --sunk:#232836; --fg:#e6e9f0; --muted:#9aa3b6; --line:#2f3545;
+  --accent:#7c9cff; --accent-ink:#0d1220;
+  --imp:#ff7b7b; --nit:#e3b341; --pre:#b896ff; --drop:#9aa3b6; --ok:#4cc38a;
+  --imp-bg:#3a1f22; --nit-bg:#3a3018; --pre-bg:#2c2340; --ok-bg:#183326; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.55;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));padding-block:0 48px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.wrap{max-width:980px;margin:0 auto}
+header.top{padding-block:28px 12px}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:var(--f-display);font-weight:600;font-size:clamp(26px,4vw,34px);margin:4px 0 6px;text-wrap:balance}
+h2{font-family:var(--f-display);font-weight:600;font-size:20px;margin:0 0 4px}
+h3{font-size:14px;font-weight:600;margin:0 0 8px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+p{margin:0 0 10px;max-width:68ch}
+.lede{color:var(--muted)}
+nav.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:20px;overflow-x:auto}
+nav.tabs a{font-family:var(--f-mono);font-size:13px;color:var(--muted);text-decoration:none;padding:10px 14px;border-bottom:2px solid transparent;white-space:nowrap}
+nav.tabs a[aria-current="page"]{color:var(--fg);border-bottom-color:var(--accent)}
+nav.tabs a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.panel{display:grid;gap:16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;min-width:0}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.stat{background:var(--sunk);border-radius:6px;padding:10px 12px}
+.stat .k{font-family:var(--f-mono);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.stat .v{font-family:var(--f-display);font-size:24px;font-variant-numeric:tabular-nums}
+.stat.warn .v{color:var(--imp)}
+label.ctl{display:grid;gap:4px;font-size:13px;color:var(--muted)}
+.ctlrow{display:flex;flex-wrap:wrap;gap:16px 24px;align-items:end}
+input[type=range]{width:220px;max-width:100%;accent-color:var(--accent)}
+input[type=number]{width:80px;font:inherit;padding:4px 6px;border:1px solid var(--line);border-radius:4px;background:var(--surface);color:var(--fg)}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.big{font-family:var(--f-display);font-size:20px;color:var(--fg)}
+.tblwrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--f-mono);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;font-family:var(--f-mono)}
+tr.best td{background:var(--ok-bg)}
+.pill{display:inline-block;font-family:var(--f-mono);font-size:11px;padding:1px 7px;border-radius:999px;white-space:nowrap}
+.p-imp{background:var(--imp-bg);color:var(--imp)} .p-nit{background:var(--nit-bg);color:var(--nit)}
+.p-pre{background:var(--pre-bg);color:var(--pre)} .p-ok{background:var(--ok-bg);color:var(--ok)} .p-drop{background:var(--sunk);color:var(--drop)}
+.votes{letter-spacing:1px;font-family:var(--f-mono)}
+.list{display:grid;gap:0;max-height:420px;overflow:auto;border:1px solid var(--line);border-radius:6px}
+.row{display:grid;grid-template-columns:auto 1fr auto;gap:10px;padding:7px 10px;border-bottom:1px solid var(--line);font-size:13px;align-items:center}
+.row:last-child{border-bottom:0}
+.row.hidden-row{opacity:.38}
+.row .t{min-width:0}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--muted)}
+.sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:middle}
+svg text{fill:var(--muted);font-family:var(--f-mono);font-size:11px}
+.btns{display:flex;flex-wrap:wrap;gap:6px}
+button{font:inherit;font-size:13px;padding:6px 12px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer}
+button:hover{border-color:var(--accent)}
+button.sel{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button.right{background:var(--ok-bg);border-color:var(--ok);color:var(--ok)}
+button.wrong{background:var(--imp-bg);border-color:var(--imp);color:var(--imp)}
+.q{display:grid;gap:8px}
+.ctx{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.explain{font-size:13px;background:var(--sunk);border-radius:6px;padding:8px 10px}
+.score{font-family:var(--f-display);font-size:18px}
+.matrix{display:grid;grid-template-columns:auto 1fr 1fr;gap:4px;font-size:13px;max-width:360px}
+.matrix div{padding:8px;text-align:center;border-radius:4px}
+.matrix .h{color:var(--muted);font-family:var(--f-mono);font-size:11px}
+.matrix .c{background:var(--sunk);font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.matrix .c.agree{background:var(--ok-bg);color:var(--ok)}
+.matrix input{width:64px;text-align:center}
+.note{font-size:12px;color:var(--muted)}
+footer{margin-top:32px;font-size:12px;color:var(--muted)}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+<header class="top">
+  <div class="eyebrow">Companion lab · Modules 4, 6, 7</div>
+  <h1>Reviewer Calibration Lab</h1>
+  <p class="lede">Three hands-on drills for tuning an AI code reviewer. Pick a verifier vote threshold, label findings by severity, and measure how well a judge agrees with engineers. All data is synthetic and built for teaching.</p>
+</header>
+
+<nav class="tabs" aria-label="Lab sections">
+  <a href="#tuner" data-tab="tuner">Threshold tuner</a>
+  <a href="#triage" data-tab="triage">Severity triage</a>
+  <a href="#agreement" data-tab="agreement">Agreement (κ)</a>
+</nav>
+
+<!-- ============ TUNER ============ -->
+<section id="p-tuner" class="panel" aria-labelledby="h-tuner">
+  <div class="card">
+    <h2 id="h-tuner">Threshold tuner</h2>
+    <p>The eval set has <b>30 confirmed bugs</b>. The finders produced <b>50 candidate findings</b>: 26 real bugs and 24 non-bugs. Four bugs were never found. Five verifier agents voted on each candidate. A finding is posted when it gets at least <i>k</i> "real" votes. A <b>harmful FP</b> is a non-bug posted as Important, which could push an agent author to break working code.</p>
+    <div class="ctlrow">
+      <label class="ctl" for="k">Votes required (of 5): <span class="big mono" id="kVal">3</span>
+        <input type="range" id="k" min="1" max="5" step="1" value="3">
+      </label>
+      <label class="ctl" for="split"><span><input type="checkbox" id="split"> Separate threshold for Important</span></label>
+      <label class="ctl" for="kImp" id="kImpWrap" hidden>Important needs: <span class="big mono" id="kImpVal">5</span>
+        <input type="range" id="kImp" min="1" max="5" step="1" value="5">
+      </label>
+    </div>
+  </div>
+
+  <div class="stats" id="tStats"></div>
+
+  <div class="grid2">
+    <div class="card">
+      <h3>Precision · Recall · F1 by threshold</h3>
+      <div id="chart"></div>
+      <div class="legend">
+        <span><span class="sw" style="background:var(--accent)"></span>Recall</span>
+        <span><span class="sw" style="background:var(--ok)"></span>Precision</span>
+        <span><span class="sw" style="background:var(--nit)"></span>F1</span>
+      </div>
+    </div>
+    <div class="card">
+      <h3>What does a mistake cost?</h3>
+      <div class="ctlrow">
+        <label class="ctl" for="cImp">False Important<input type="number" id="cImp" value="3" min="0" step="0.5"></label>
+        <label class="ctl" for="cNit">False Nit<input type="number" id="cNit" value="0.5" min="0" step="0.5"></label>
+        <label class="ctl" for="cMiss">Missed bug<input type="number" id="cMiss" value="4" min="0" step="0.5"></label>
+      </div>
+      <div class="tblwrap" style="margin-top:10px"><table id="costTbl"></table></div>
+      <p class="note">Cost table uses a single threshold. The lowest-cost row is highlighted.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Candidate findings</h3>
+    <div class="legend" style="margin-bottom:8px">
+      <span><span class="pill p-ok">TP</span> real bug, posted</span>
+      <span><span class="pill p-imp">FP</span> non-bug, posted</span>
+      <span><span class="pill p-drop">filtered</span> not posted (dimmed)</span>
+    </div>
+    <div class="list" id="tList"></div>
+  </div>
+</section>
+
+<!-- ============ TRIAGE ============ -->
+<section id="p-triage" class="panel" aria-labelledby="h-triage" hidden>
+  <div class="card">
+    <h2 id="h-triage">Severity triage</h2>
+    <p>Label each finding as a calibrated reviewer would, then check your answer. <span class="pill p-imp">Important</span> means a bug to fix before merge. <span class="pill p-nit">Nit</span> means minor and non-blocking. <span class="pill p-pre">Pre-existing</span> means a real bug that this PR didn't introduce. <span class="pill p-drop">Drop</span> means it shouldn't be posted at all.</p>
+    <div class="ctlrow"><div class="score" id="trScore">0 / 0</div><button type="button" id="trReset">Start over</button></div>
+  </div>
+  <div class="panel" id="trList"></div>
+</section>
+
+<!-- ============ AGREEMENT ============ -->
+<section id="p-agreement" class="panel" aria-labelledby="h-agree" hidden>
+  <div class="card">
+    <h2 id="h-agree">Agreement (Cohen's κ)</h2>
+    <p>An LLM judge and a second engineer each labelled 12 reviewer findings as <b>real bug</b> or <b>not a bug</b>. Add your own labels, then compare. κ corrects raw agreement for chance: κ = (p<sub>o</sub> − p<sub>e</sub>) / (1 − p<sub>e</sub>).</p>
+  </div>
+  <div class="card">
+    <h3>Label the findings</h3>
+    <div class="tblwrap"><table id="agTbl"></table></div>
+  </div>
+  <div class="stats" id="agStats"></div>
+  <div class="card">
+    <h3>2×2 calculator</h3>
+    <p class="note">Enter any confusion matrix to compute κ, for example the ones from Module 7.</p>
+    <div class="matrix" id="calc">
+      <div></div><div class="h">B: yes</div><div class="h">B: no</div>
+      <div class="h">A: yes</div><div class="c"><input type="number" id="m11" value="40" min="0" aria-label="A yes, B yes"></div><div class="c"><input type="number" id="m12" value="10" min="0" aria-label="A yes, B no"></div>
+      <div class="h">A: no</div><div class="c"><input type="number" id="m21" value="5" min="0" aria-label="A no, B yes"></div><div class="c"><input type="number" id="m22" value="45" min="0" aria-label="A no, B no"></div>
+    </div>
+    <p class="mono" id="calcOut" style="margin-top:10px"></p>
+  </div>
+</section>
+
+<footer>Synthetic teaching data. The pipeline shape (Find → Verify → Rank), the severity labels and the observe-before-enforce practice come from Anthropic's Claude Code posts on verification and code review. The numbers here are illustrative.</footer>
+</div>
+
+<script>
+(function(){
+"use strict";
+/* ---------- data: tuner ---------- */
+const TOTAL_BUGS = 30;
+// [title, real?, votes(0-5), proposedSeverity 'imp'|'nit']
+const C = [
+ ["Old transcripts crash on --resume: new field read without default",1,5,"imp"],
+ ["Retry wrapper re-captures payment without idempotency key",1,5,"imp"],
+ ["Auth middleware skips tenant check on PATCH",1,5,"imp"],
+ ["Migration not idempotent: second run duplicates rows",1,5,"imp"],
+ ["Test assertion loosened from toEqual(42) to toBeDefined()",1,5,"imp"],
+ ["Access token written to debug log",1,5,"imp"],
+ ["Off-by-one drops last page of results",1,5,"imp"],
+ ["Timeout set in ms where API expects seconds",1,5,"nit"],
+ ["Unused feature flag default flipped to on",1,5,"nit"],
+ ["catch {} swallows DB write failure, returns success",1,4,"imp"],
+ ["Calls client.fetchAll(), which doesn't exist in SDK v3",1,4,"imp"],
+ ["Cache key omits locale; users see wrong language",1,4,"imp"],
+ ["Race: two workers can claim the same job",1,4,"imp"],
+ ["CSV export breaks on embedded quotes",1,4,"imp"],
+ ["Date parsed in local time instead of UTC",1,4,"nit"],
+ ["Error message leaks internal hostname",1,4,"nit"],
+ ["Pagination cursor not URL-encoded",1,3,"imp"],
+ ["File handle not closed on error path",1,3,"imp"],
+ ["Diff also rewrites rate limiter (not in PR intent)",1,3,"imp"],
+ ["Integer overflow on large upload sizes",1,3,"nit"],
+ ["Retry has no jitter; thundering herd on recovery",1,3,"nit"],
+ ["Mock replaces the function under test",1,2,"imp"],
+ ["Null user in webhook path throws",1,2,"imp"],
+ ["Duplicate helper diverges from utils/slugify",1,2,"nit"],
+ ["Config reload drops custom headers",1,1,"imp"],
+ ["Sort is unstable; UI order flickers",1,1,"nit"],
+ ["\"Potential SQL injection\" (query is parameterised)",0,5,"imp"],
+ ["\"Missing null check\" (type guarantees non-null)",0,4,"imp"],
+ ["\"Breaking API change\" (endpoint is internal and flagged)",0,4,"imp"],
+ ["Rename variable tmp → buffer",0,4,"nit"],
+ ["\"Race condition\" (code runs single-threaded)",0,3,"imp"],
+ ["\"Unbounded loop\" (bounded by schema max)",0,3,"imp"],
+ ["Consider extracting helper",0,3,"nit"],
+ ["Add a docstring",0,3,"nit"],
+ ["Prefer early return",0,3,"nit"],
+ ["\"Secret in code\" (test fixture placeholder)",0,2,"imp"],
+ ["\"Deprecated API\" (deprecation was reverted)",0,2,"imp"],
+ ["Import order",0,2,"nit"],
+ ["Line too long",0,2,"nit"],
+ ["Use const instead of let",0,2,"nit"],
+ ["Consider memoising",0,2,"nit"],
+ ["Prefer template literal",0,2,"nit"],
+ ["\"Missing auth\" (route behind gateway auth)",0,1,"imp"],
+ ["\"Data loss\" (field intentionally removed with migration)",0,1,"imp"],
+ ["\"Wrong status code\" (matches spec)",0,1,"imp"],
+ ["Add more tests",0,1,"nit"],
+ ["Comment typo",0,1,"nit"],
+ ["Consider a constant",0,1,"nit"],
+ ["Trailing whitespace",0,1,"nit"],
+ ["Magic number 3",0,1,"nit"]
+].map(([t,r,v,s])=>({t,real:!!r,v,s}));
+
+const $ = id => document.getElementById(id);
+const pct = x => isFinite(x) ? (x*100).toFixed(0)+"%" : "–";
+
+function evalAt(k, kImp){
+  let tp=0, fp=0, harm=0, fpImp=0, fpNit=0;
+  C.forEach(c=>{
+    const need = (kImp!=null && c.s==="imp") ? kImp : k;
+    c._posted = c.v >= need;
+    if(c._posted){ if(c.real) tp++; else { fp++; if(c.s==="imp"){harm++;fpImp++;} else fpNit++; } }
+  });
+  const P = tp/(tp+fp), R = tp/TOTAL_BUGS, F = (P+R)? 2*P*R/(P+R):0;
+  return {tp,fp,harm,fpImp,fpNit,P,R,F,miss:TOTAL_BUGS-tp,posted:tp+fp};
+}
+
+function stat(k,v,warn){return `<div class="stat${warn?' warn':''}"><div class="k">${k}</div><div class="v">${v}</div></div>`}
+
+function chart(curK){
+  const W=440,H=210,pl=36,pr=12,pt=12,pb=28, iw=W-pl-pr, ih=H-pt-pb;
+  const pts={R:[],P:[],F:[]};
+  for(let k=1;k<=5;k++){const m=evalAt(k,null);pts.R.push(m.R);pts.P.push(m.P);pts.F.push(m.F);}
+  const x=k=>pl+(k-1)/4*iw, y=v=>pt+(1-v)*ih;
+  let s=`<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Precision, recall and F1 by vote threshold">`;
+  [0,.25,.5,.75,1].forEach(g=>{s+=`<line x1="${pl}" x2="${W-pr}" y1="${y(g)}" y2="${y(g)}" stroke="var(--line)" stroke-width="1"/><text x="${pl-6}" y="${y(g)+4}" text-anchor="end">${g*100}</text>`});
+  for(let k=1;k<=5;k++) s+=`<text x="${x(k)}" y="${H-8}" text-anchor="middle">k=${k}</text>`;
+  s+=`<rect x="${x(curK)-14}" y="${pt}" width="28" height="${ih}" fill="var(--sunk)" />`;
+  const line=(arr,col)=>{let d=arr.map((v,i)=>(i?'L':'M')+x(i+1)+' '+y(v)).join(' ');return `<path d="${d}" fill="none" stroke="${col}" stroke-width="2.25"/>`+arr.map((v,i)=>`<circle cx="${x(i+1)}" cy="${y(v)}" r="${i+1===curK?4.5:3}" fill="${col}"/>`).join('')};
+  s+=line(pts.R,"var(--accent)")+line(pts.P,"var(--ok)")+line(pts.F,"var(--nit)");
+  return s+"</svg>";
+}
+
+function renderTuner(){
+  const k=+$("k").value, split=$("split").checked, kImp= split? +$("kImp").value : null;
+  $("kVal").textContent=k; $("kImpVal").textContent=$("kImp").value; $("kImpWrap").hidden=!split;
+  const m=evalAt(k,kImp);
+  $("tStats").innerHTML = stat("Posted",m.posted)+stat("True pos.",m.tp)+stat("False pos.",m.fp)+
+    stat("Precision",pct(m.P))+stat("Recall (of 30)",pct(m.R))+stat("F1",m.F.toFixed(2))+stat("Harmful FPs",m.harm,m.harm>1);
+  $("chart").innerHTML=chart(k);
+  const cI=+$("cImp").value||0,cN=+$("cNit").value||0,cM=+$("cMiss").value||0;
+  let rows=[],best=1e9,bk=0;
+  for(let j=1;j<=5;j++){const r=evalAt(j,null);r.cost=r.fpImp*cI+r.fpNit*cN+r.miss*cM;rows.push(r);if(r.cost<best){best=r.cost;bk=j;}}
+  $("costTbl").innerHTML=`<tr><th>k</th><th class="num">FP Imp</th><th class="num">FP Nit</th><th class="num">Missed</th><th class="num">Cost</th></tr>`+
+    rows.map((r,i)=>`<tr class="${i+1===bk?'best':''}"><td class="mono">${i+1}</td><td class="num">${r.fpImp}</td><td class="num">${r.fpNit}</td><td class="num">${r.miss}</td><td class="num">${r.cost.toFixed(1)}</td></tr>`).join("");
+  evalAt(k,kImp); // restore _posted for list
+  const sorted=[...C].sort((a,b)=>b.v-a.v||(b.real-a.real));
+  $("tList").innerHTML=sorted.map(c=>{
+    const tag=!c._posted?'<span class="pill p-drop">filtered</span>':c.real?'<span class="pill p-ok">TP</span>':'<span class="pill p-imp">FP</span>';
+    const sev=c.s==="imp"?'<span class="pill p-imp">Important</span>':'<span class="pill p-nit">Nit</span>';
+    const votes="●".repeat(c.v)+"○".repeat(5-c.v);
+    return `<div class="row${c._posted?'':' hidden-row'}"><span class="votes" title="${c.v} of 5 verifiers said real">${votes}</span><span class="t">${c.t} ${sev}</span>${tag}</div>`;
+  }).join("");
+}
+["k","kImp","split","cImp","cNit","cMiss"].forEach(id=>$(id).addEventListener("input",renderTuner));
+
+/* ---------- data: triage ---------- */
+const T=[
+ {f:"`chargeCard()` now runs inside a retry loop with no idempotency key; a timeout can double-charge.",ctx:"new code · payments/capture.ts:88",a:"imp",why:"Concrete failure scenario, money involved, introduced by this PR."},
+ {f:"Variable `res2` could have a clearer name.",ctx:"new code · api/orders.ts:41",a:"drop",why:"Naming taste. Linters and humans own this; posting it costs an agent author a round."},
+ {f:"`toLocalDate()` mishandles DST transitions.",ctx:"untouched file · utils/time.ts:12 (last changed 2024)",a:"pre",why:"Real bug, but this PR didn't introduce it. Don't blame the author."},
+ {f:"Assertion changed from `toEqual(expectedRows)` to `toHaveLength(3)`.",ctx:"test change · export.test.ts:57",a:"imp",why:"Test tampering: the assertion was weakened so it passes. A classic AI failure mode."},
+ {f:"Consider extracting these 6 lines into a helper.",ctx:"new code · ui/Cart.tsx:120",a:"nit",why:"Optional improvement, non-blocking. Some teams ban these in REVIEW.md, so Drop is also defensible."},
+ {f:"New `toolVersion` field read without default; transcripts saved before this PR will throw on resume.",ctx:"new code · session/store.ts:142 · checklist: resume-loads-old-transcripts",a:"imp",why:"Backward-compat break on persisted data, from a diff-triggered checklist item."},
+ {f:"`catch (e) {}` around the cache write; failures are silently ignored.",ctx:"new code · cache/write.ts:33",a:"imp",why:"Silent fallback hides data problems. Important unless the cache is explicitly best-effort and says so."},
+ {f:"PR says 'add CSV export' but the diff also changes the session cookie flags.",ctx:"intent mismatch · auth/cookies.ts",a:"imp",why:"Out-of-scope change in a security-sensitive area. It should also raise the risk tier."},
+ {f:"Import statements are not alphabetised.",ctx:"new code · many files",a:"drop",why:"The formatter owns this. Never a reviewer finding."},
+ {f:"Log line includes `user.email` at INFO level.",ctx:"new code · signup/handler.ts:64",a:"imp",why:"PII in logs: privacy or compliance risk introduced here."},
+ {f:"Magic number 30 used for the timeout; consider a named constant.",ctx:"new code · jobs/poll.ts:19",a:"nit",why:"Readability nit, worth fixing, not blocking."},
+ {f:"SQL query in `reports/legacy.ts` concatenates a user string.",ctx:"untouched file · reports/legacy.ts:210 (not in diff)",a:"pre",why:"Serious, but pre-existing. Label it Pre-existing and route it to its owner. Don't block this PR."}
+];
+const LBL={imp:"Important",nit:"Nit",pre:"Pre-existing",drop:"Drop"};
+let trAns={};
+function renderTriage(){
+  let right=0,done=0;
+  $("trList").innerHTML=T.map((q,i)=>{
+    const a=trAns[i]; if(a){done++; if(a===q.a) right++;}
+    const btn=o=>{let cls=""; if(a){ if(o===q.a) cls="right"; else if(o===a) cls="wrong"; }
+      return `<button type="button" data-q="${i}" data-o="${o}" class="${cls}" ${a?'aria-disabled="true"':''}>${LBL[o]}</button>`};
+    return `<div class="card q"><div class="ctx">#${i+1} · ${q.ctx}</div><div>${q.f.replace(/`([^`]+)`/g,'<code class="mono">$1</code>')}</div>
+      <div class="btns">${["imp","nit","pre","drop"].map(btn).join("")}</div>
+      ${a?`<div class="explain"><b>${a===q.a?"Correct":"Calibrated answer: "+LBL[q.a]}.</b> ${q.why}</div>`:""}</div>`;
+  }).join("");
+  $("trScore").textContent=`${right} / ${done} correct`+(done===T.length?` · ${right>=10?"well calibrated":"re-read Module 4"}`:"");
+}
+$("trList").addEventListener("click",e=>{const b=e.target.closest("button[data-q]"); if(!b) return; const i=+b.dataset.q; if(trAns[i]) return; trAns[i]=b.dataset.o; renderTriage();});
+$("trReset").addEventListener("click",()=>{trAns={};renderTriage();});
+
+/* ---------- data: agreement ---------- */
+// judge / eng2: 1=real, 0=not
+const A=[
+ ["Retry loop double-charges without idempotency key",1,1],
+ ["Possible null deref on optional `user.profile`",1,0],
+ ["Unbounded recursion on cyclic config",1,1],
+ ["\"SQL injection\" in parameterised query",1,0],
+ ["Timezone bug in report cutoff",1,1],
+ ["Error swallowed in cache write (best-effort cache)",1,0],
+ ["Off-by-one in pagination",1,1],
+ ["\"Race\" in single-threaded CLI",0,0],
+ ["Deprecated SDK call (still supported until 2028)",0,1],
+ ["Missing auth on internal health route",0,0],
+ ["Assertion weakened in export test",1,1],
+ ["Hard-coded retry count of 3",0,0]
+];
+let me={};
+function kappa(a,b){ // arrays of 0/1
+  const n=a.length; if(!n) return null;
+  let agree=0,a1=0,b1=0; for(let i=0;i<n;i++){ if(a[i]===b[i]) agree++; a1+=a[i]; b1+=b[i]; }
+  const po=agree/n, pa=a1/n, pb=b1/n, pe=pa*pb+(1-pa)*(1-pb);
+  return {po,pe,k: pe===1? (po===1?1:0) : (po-pe)/(1-pe), n};
+}
+function kfmt(r){return r? `${r.k.toFixed(2)}` : "–"}
+function renderAgree(){
+  $("agTbl").innerHTML=`<tr><th>Finding</th><th>Judge</th><th>Engineer 2</th><th>You</th></tr>`+A.map(([t,j,e],i)=>{
+    const p=v=>v?'<span class="pill p-ok">real</span>':'<span class="pill p-drop">not</span>';
+    const sel=me[i];
+    return `<tr><td>${t.replace(/`([^`]+)`/g,'<code class="mono">$1</code>')}</td><td>${p(j)}</td><td>${p(e)}</td><td><div class="btns">
+      <button type="button" data-a="${i}" data-v="1" class="${sel===1?'sel':''}" aria-pressed="${sel===1}">real</button>
+      <button type="button" data-a="${i}" data-v="0" class="${sel===0?'sel':''}" aria-pressed="${sel===0}">not</button></div></td></tr>`}).join("");
+  const J=A.map(r=>r[1]),E=A.map(r=>r[2]);
+  const idx=Object.keys(me).map(Number).sort((x,y)=>x-y);
+  const M=idx.map(i=>me[i]);
+  const je=kappa(J,E);
+  const ym=idx.length? kappa(M, idx.map(i=>J[i])) : null;
+  const ye=idx.length? kappa(M, idx.map(i=>E[i])) : null;
+  $("agStats").innerHTML= stat("Judge vs Eng 2 · agree",pct(je.po)) + stat("Judge vs Eng 2 · κ",kfmt(je)) +
+    stat(`You vs Judge · κ (n=${idx.length})`,kfmt(ym)) + stat(`You vs Eng 2 · κ (n=${idx.length})`,kfmt(ye)) +
+    stat("Judge says real", `${J.reduce((s,x)=>s+x,0)}/12`);
+}
+$("agTbl").addEventListener("click",e=>{const b=e.target.closest("button[data-a]"); if(!b) return; me[+b.dataset.a]=+b.dataset.v; renderAgree();});
+
+function calc(){
+  const a=+$("m11").value||0,b=+$("m12").value||0,c=+$("m21").value||0,d=+$("m22").value||0,n=a+b+c+d;
+  if(!n){$("calcOut").textContent="Enter counts."; return;}
+  const po=(a+d)/n, pA=(a+b)/n, pB=(a+c)/n, pe=pA*pB+(1-pA)*(1-pB), k= pe===1?1:(po-pe)/(1-pe);
+  const band = k<0?"worse than chance":k<.2?"slight":k<.4?"fair":k<.6?"moderate":k<.8?"substantial":"almost perfect";
+  $("calcOut").textContent=`n=${n} · p_o=${po.toFixed(3)} · p_e=${pe.toFixed(3)} · κ=${k.toFixed(3)} (${band}, Landis–Koch bands)`;
+}
+["m11","m12","m21","m22"].forEach(id=>$(id).addEventListener("input",calc));
+
+/* ---------- routing ---------- */
+const TABS=["tuner","triage","agreement"];
+function route(){
+  let h=(location.hash||"").slice(1); if(!TABS.includes(h)) h="tuner";
+  TABS.forEach(t=>{ $("p-"+t).hidden = t!==h; });
+  document.querySelectorAll("nav.tabs a").forEach(a=>{ if(a.dataset.tab===h) a.setAttribute("aria-current","page"); else a.removeAttribute("aria-current"); });
+}
+window.addEventListener("hashchange",route);
+
+renderTuner(); renderTriage(); renderAgree(); calc(); route();
+})();
+</script>
