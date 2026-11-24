@@ -92,6 +92,47 @@ sequenceDiagram
 
 **Failing checks go to humans.** If a check still fails after three rounds, Claude stops and brings in a person. Failures are the signal for what needs human attention.
 
+## Going further: one software factory's verification layers
+
+Harjot Gill (CodeRabbit) described the layers his agents use to check their own work, in the [Pragmatic Engineer episode](https://newsletter.pragmaticengineer.com/p/software-factories-and-code-reviews). Many of them go beyond tests:
+
+```mermaid
+flowchart LR
+  FM["Formal models<br/><i>TLA+ found races that<br/>code review missed; Lean explored</i>"] --> DS["Deterministic simulation<br/><i>fuzz concurrent interleavings locally</i>"]
+  DS --> EM["Emulated real APIs<br/><i>e.g. cloud APIs, offline</i>"]
+  EM --> DEV["Dev environments<br/><i>agent deploys and checks the service</i>"]
+  DEV --> PROD["Progressive rollout<br/><i>flags + an agent watching perf/logs,<br/>widening the rollout when stable</i>"]
+```
+
+How these map onto the seven layers:
+
+| Gill's layer | Seven-layer slot | What it catches that a reviewer can't |
+|---|---|---|
+| Formal models (TLA+) | Pre-PR (design) | Race conditions and protocol bugs in the *design*. He reports TLA+ found races that code review missed |
+| Deterministic simulation | Pre-PR (tests) | Interleavings too rare to hit in normal tests |
+| API emulation | Pre-PR / CI | Integration behaviour without real credentials or quotas |
+| Dev-env deploy | `verify` skill | "Does it actually run": the anchor post's "run the change" |
+| Agent-watched rollout | Layers 6–7 | Production-only regressions, caught early and limited to a small share of traffic |
+
+Details from the transcript:
+
+- **When TLA+ is worth it:** it is "not great for things which are algorithms," but strong for "messages and actors and interactions." CodeRabbit used it on a Slack bot product with queues, message steering and sandbox lifecycle states. They **modelled the states before writing any code**, and TLA+ found "race conditions which we had overlooked." A simulation harness that fuzzes interleavings found more. **Lean** is used for things that need to be provably correct, like the billing service.
+- **Counterpoint:** Orosz cites Hillel Wayne, a TLA+ expert, saying formal methods are probably overkill for almost all software. Use them for distributed state machines, not everywhere.
+- **Agents in production:** agents "own health" of components such as billing and the knowledge base. On every deploy they either **add telemetry if they're "flying blind"** or fix something. Gill's argument: "alerts are limited by your imagination on the failure scenarios you imagine," while agents can read logs and traces directly.
+
+The lesson for reviewer design: when expensive checks like formal models and simulation cover **concurrency and protocols**, the reviewer agent can stop guessing about races and point to those results instead.
+
+## Test hygiene at factory scale: "deslopping"
+
+Agents write a lot of tests, and many of them are useless. CodeRabbit runs **janitorial agents** ("Roombas") all the time:
+
+- **Deslop tests.** Remove useless and redundant unit tests and move coverage toward **integration and E2E tests**. This agrees with the anchor post's preference for E2E tests.
+- **Remove flaky tests continuously**, because "each flaky test resets the merge queue."
+- **Keep a CI time budget:** ideally ≤ 3 minutes (they're at about 4). Slow CI means fewer agent iterations and a higher compute bill.
+- **"Let the chaos reign, then rein in the chaos."** Accept that the codebase gets messier as agents ship, including a weaker security posture when auth layers aren't reused. Then run agents to clean up flaky tests, bad abstractions and refactors.
+
+Compare this with the anchor post's approach of no sleeps or retries, deleting and documenting flaky tests, and pruning routinely. Both treat the test suite as something that keeps growing unless you tend it. CodeRabbit automates the tending. Anthropic writes it down as policy.
+
 ## Where the reviewer agent sits, and what it uniquely does
 
 | Question | Tests | `verify` skill | Reviewer agent | Human |
@@ -141,7 +182,14 @@ Every commit is stamped with how it was verified, **including "none"**, so unver
 For most teams the answer is layer 1 (a reliable `verify` skill) or layer 5 (risk tiers, so low-risk PRs need no human). A reviewer agent with no layer 1 underneath spends its rounds on bugs a test run would have caught for free.
 </details>
 
-**2.3 Spot the anti-pattern.** An agent hits a flaky test, adds `sleep(2)`, and the test passes. What does the anchor post say to do?
+**2.3 Should we use TLA+?** For each, decide whether formal modelling is worth it: (a) a job queue with retries, cancellation and worker leases; (b) a tax calculation function; (c) a React settings page.
+
+<details><summary>Answer</summary>
+
+(a) **Yes.** Messages, actors and states are where TLA+ found races at CodeRabbit. (b) **No.** It's an algorithm, so use property and differential tests (or Lean if it must be provably correct, as CodeRabbit does for billing). (c) **No.** Use E2E tests from a feature map.
+</details>
+
+**2.4 Spot the anti-pattern.** An agent hits a flaky test, adds `sleep(2)`, and the test passes. What does the anchor post say to do?
 
 <details><summary>Answer</summary>
 

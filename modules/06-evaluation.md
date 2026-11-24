@@ -112,6 +112,30 @@ From the companion post: % of PRs passing after one review-and-fix round, % need
 | Revert rate, incidents | Prod | **The guardrail.** Must not rise |
 | Human review time per PR | PR timeline | **The objective.** Should fall |
 
+## Evals at a vendor: what CodeRabbit says
+
+From the [Pragmatic Engineer episode](https://newsletter.pragmaticengineer.com/p/software-factories-and-code-reviews). CodeRabbit doesn't publish its eval method, so these are the operational points Gill gave:
+
+- **Eval capacity is now a bottleneck.** New models arrive "every few weeks", so "every day we are evaluating something." The applied AI team spends much of its time measuring **price-to-performance for each model on each workload**. They have "zero bandwidth to even onboard another vendor."
+- **Evaluate per workload, not per model.** CodeRabbit uses several models across its sub-agents, so the real question is "is model X better for *context prep* (or *verification*) at this price?" A single overall score doesn't answer that.
+- **Live traffic as an eval stream.** Free use by open-source projects is a deliberate feedback loop: "each review that happens every few seconds goes back into our pipeline to fine tune the harness."
+
+What this means for your own setup:
+
+```mermaid
+flowchart LR
+  NEW[New model released] --> SLOT{For each pipeline slot<br/>context · find · verify · rank}
+  SLOT --> RUN[Run slot-level eval<br/>on tuning set]
+  RUN --> PP[Quality per $<br/>+ latency]
+  PP -->|beats incumbent| HO[Confirm on held-out<br/>end-to-end]
+  PP -->|doesn't| KEEP[Keep incumbent]
+  HO --> OBS[Observe mode]
+```
+
+- Keep **per-stage eval harnesses** so you can swap the model in one slot without re-running everything. The per-stage recall measurements above already give you this.
+- Budget **eval capacity** like any other capacity, in people and compute. If you can't eval a model, you can't adopt it.
+- Your **author-response tags** are a smaller version of CodeRabbit's open-source stream. Every "called wrong" is a free labelled example.
+
 ## When to stop tuning
 
 > Tune recall up until the next gain would be overfitting the eval rather than catching bugs.

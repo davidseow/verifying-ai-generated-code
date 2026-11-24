@@ -82,6 +82,21 @@ Imagine it's day 90 and the rollout failed. The likely reasons:
 - **REVIEW.md grew to 400 lines.** Nothing was ever pruned.
 - **The PR could edit the reviewer's config.** One agent "fixed" the rule instead of the code.
 - **Nobody owned the model upgrade.** Recall shifted silently.
+- **Review scaled, CI didn't.** At CodeRabbit, CI spend reached about the same as token spend, a vendor quoted ~$13M/year, and GCP ran out of CPU. Put CI minutes and cost per PR on the scorecard, and keep CI under ~3–4 minutes.
+- **Agents needed people around the clock.** Gill wakes at 3 a.m. because "every hour like one or two agents are going to get stuck." Agents running on one person's laptop are a single point of failure. Plan for shared, cloud-hosted agent sessions, someone on shift to answer them, and a `why_human` on every escalation.
+- **Quality was claimed, not measured.** "Our defect rate... is going down... I still have to measure it." Without the guardrail data from Module 1, neither the optimists nor the sceptics can show they're right.
+- **Agents ran without limits.** An agent harness "reaching too far" (the Railway incident linked from the Pragmatic Engineer episode) shows that how far agents may reach needs its own limits, not just review.
+
+## Debate exercise: "Human code review is dead"
+
+Harjot Gill argues that people should review **plans and releases**, not diffs. Anthropic's teams still require 1–2 humans on medium- and high-risk PRs. Write one paragraph for each side, using evidence from these modules, then a third paragraph with your position for **your** team.
+
+<details><summary>Points to consider</summary>
+
+- *For Gill:* line-by-line review doesn't scale to thousands of PRs, and Orosz agrees that for many teams it is already "theater" ("LGTM", with no real reading). People still review: they decide whether to ship and how risky something is, at release level. Formal models, simulation and agent-watched rollouts catch what reviewers miss. Exposure time is minimised with 10–15 minute rollbacks. The driving license keeps people accountable. His most provocative line: "humans were writing slop, not AI... AI is actually writing less slop at this point if it can validate against something."
+- *For Anthropic:* some risk has to be caught **before** prod (billing, auto-updater, CI workflows). Agents have no track record to strike. Their measured result was more than 2× PRs with 40%+ fewer reverts, and they kept humans on high-risk paths to get it.
+- *Common ground:* both move people away from reading every diff toward defining "done" and checking evidence. The disagreement is only about where the **remaining** human review sits: on risky diffs, or on releases.
+</details>
 
 ## Final exercise
 

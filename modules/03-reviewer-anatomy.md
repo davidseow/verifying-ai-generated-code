@@ -45,6 +45,24 @@ flowchart LR
 | **Label** | Important / Nit / Pre-existing | Pre-existing keeps old bugs from being blamed on the author. |
 | **Post** | Inline comment, summary, "why this was flagged," `file:line` | Every finding must be **answered**: fixed, or resolved with a reason. |
 
+## The harness matters more than the model
+
+Harjot Gill, CEO of CodeRabbit, an AI code review company, describes how the reviewer is built in the [Pragmatic Engineer episode](https://newsletter.pragmaticengineer.com/p/software-factories-and-code-reviews):
+
+- **Code review is "a breadth and a depth problem. You need a good recall precision."** He calls it one of the few areas where "a specialized harness is still applicable" rather than a general-purpose agent.
+- **Use a mix of models, routed by job.** Users don't pick the model. The team decides "which sub-agents, which workloads" each model fits, based on **price-to-performance**. **Cheaper models do code exploration and context preparation**, and expensive models do "deep inference and reasoning."
+- **Context engineering beats extra thinking.** Reasoning models "can go off track if they overthink", and higher effort is "sometimes worse." CodeRabbit uses **semantic analysis and code graphs** to keep token costs down while still producing "very high-quality leads" for the reasoning model to follow up.
+- **"Fine-tune the harness", not the model** (Module 8).
+
+How this maps to the pipeline above:
+
+| Stage | Model tier | Why |
+|---|---|---|
+| Context prep (code graph, related files, history) | Cheap / fast | High volume, mostly retrieval |
+| Find | Mix: cheap broad sweeps plus strong models on high-risk files | Recall |
+| Verify | Strong reasoning model, fresh context | Precision matters most here |
+| Rank / dedupe / label | Cheap, plus rules | Mostly structured work |
+
 ## The finding: the reviewer's unit of output
 
 Design the schema before the prompt. Everything in Modules 6 and 7 measures this object.

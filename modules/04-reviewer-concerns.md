@@ -121,6 +121,41 @@ Pre-existing is easy to overlook and it matters. Without it, a reviewer that rea
 
 A classifier sets the tier **from the change, not the author**. A second classifier can require a person anyway.
 
+### Contrast: author trust with accountability (CodeRabbit)
+
+The [Pragmatic Engineer episode](https://newsletter.pragmaticengineer.com/p/software-factories-and-code-reviews) describes a different model:
+
+- **The PR becomes the planning gate.** Agents, designers, support tickets and background agents (for example, Datadog opening PRs from alerts) now produce code without going through planning first. The human's first question about a PR is "**is this something I need to ship? Is it slop I need to close?**" The second is "**what's the risk?**" For example: is it a database migration, and why? Look at schema changes.
+- **Review releases, not PRs.** For SOC 2, "the definition of change at CodeRabbit is now a release." CodeRabbit ships every 30–45 minutes. A Slack message summarises each PR in a release with risk indicators (minimal or high), and an engineer, not a PM, approves the release or rolls parts of it back. Rollback takes 10–15 minutes. Some PRs are fast-tracked, and "we are even letting our interns ship directly to production."
+- **A "driving license."** Engineers on a **review-exempt list**, chosen by experience and past performance, ship without human review. When a fix lands, CodeRabbit **traces the regression back to the PR that introduced it** and measures how long bad code was **exposed** in production (for example, "100 hours of exposure" until a customer noticed). With enough strikes the license is taken away: the engineer's changes go through code review, then a **proving period**, before they can ship alone again.
+- **What gets penalised is careless steering.** Engineers who question the AI about its implementation do well. Engineers who give a vague goal ("just solve this problem for me") end up with AI that "will completely re-architect it."
+
+Orosz likes the model and compares it to old practice: interns used to need two sign-offs. His worry is that quality "seems to have dipped across the industry" because there is more change and less review.
+
+```mermaid
+flowchart LR
+  subgraph A["Change-based tiers (Anthropic)"]
+    C1[Classify the change] --> T1{Low / Med / High}
+    T1 --> R1[0 / 1 / 2 humans]
+  end
+  subgraph B["Author-based trust (CodeRabbit)"]
+    C2[Is author review-exempt?] -->|yes| S[Ship; incident → strike]
+    C2 -->|no / too many strikes| R2[Release reviewed]
+    S -->|strikes accumulate| R2
+  end
+```
+
+| | Change-based tiers | Author trust + strikes |
+|---|---|---|
+| Decides review by | What the diff touches | Who shipped it, and their track record |
+| Catches risk **before** prod | ✅ High-risk paths always get humans | ❌ Relies on the downstream verification layers |
+| Overhead on trusted people | Some | Very low |
+| Feedback signal | Reverts, incidents → new rules | Regression traced to PR → exposure time → strike on a person |
+| Unit of human review | Risky PRs | Releases (batch of PRs with risk indicators) |
+| Fits when | Many authors are agents; risk is concentrated in known paths | Small senior team; strong rollout and rollback |
+
+These aren't mutually exclusive. Anthropic also gives lighter paths "only [to] trusted authors." A practical hybrid: tier by change, and let the author's track record move a PR **down** one tier, but never out of the always-two-people paths.
+
 ## Key takeaways
 
 - Define scope from your own revert and incident history, encoded as diff-triggered checklist items.
@@ -158,7 +193,19 @@ A classifier sets the tier **from the change, not the author**. A second classif
 Bad trigger: "when the change affects performance." Good trigger: "diff adds a DB query inside a loop, or touches `**/repositories/**` without touching `**/indexes/**`." The test is whether a reviewer can decide match or no match *without running anything*.
 </details>
 
-**4.3 Scope debate.** Your security lead wants the reviewer to flag every missing input validation, everywhere. What does it cost, and what would you propose?
+**4.3 Pick a review model.** For each team, choose change-based tiers, author trust with strikes, or a hybrid, and give one reason.
+1. 12 senior engineers, one service, solid feature flags and rollback, few agents.
+2. 150 engineers, payments plus regulated data, most PRs written by agents.
+3. A 30-person startup moving to heavy agent use, with weak rollout tooling.
+
+<details><summary>Answer</summary>
+
+1. **Author trust with strikes** is viable. Small, senior team, and strong rollout and rollback catch what review skips.
+2. **Change-based tiers.** Agents don't build a track record you can strike. Regulated paths need humans *before* prod whoever wrote the change.
+3. **Change-based tiers for now.** Strikes only work if outages are cheap and caught fast, and weak rollout tooling means they aren't. Invest in rollout tooling, then consider a hybrid.
+</details>
+
+**4.4 Scope debate.** Your security lead wants the reviewer to flag every missing input validation, everywhere. What does it cost, and what would you propose?
 
 <details><summary>Answer</summary>
 

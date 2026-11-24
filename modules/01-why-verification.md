@@ -77,6 +77,26 @@ quadrantChart
   "Heavy gates, no AI": [0.8, 0.25]
 ```
 
+## A second view: the "software factory"
+
+The Pragmatic Engineer episode [*Software factories and code reviews*](https://newsletter.pragmaticengineer.com/p/software-factories-and-code-reviews) (Gergely Orosz with CodeRabbit CEO Harjot Gill, Nov 2026) pushes the same idea further:
+
+- **Scale:** about **40 engineers**. Gill personally merged **5,000+ PRs in a month**, and company commits rose from a few hundred a week in July to over 5,000 a week. His own AI spend is about **$250–275K/month**, roughly **$150 per PR**. The company spends "several million dollars a month on tokens." CodeRabbit's own background agent is the **#2 committer** in the codebase. Orosz pushes back that this is an extreme outlier; for comparison, he says NVIDIA engineers have a $10K monthly budget.
+- **Two ways to work with agents.** On the **"potter's wheel"**, a person shapes software one message at a time, which Gill can sustain for only one or two chats a day. In the **factory**, an agent "hill climbs" toward a goal it can check itself against. About 18 of his 20 open sessions are factory work, such as a six-week autonomous run that built a write-ahead log in Rust he has "not read a single line of."
+- **Hill climbing starts from verification:** "it all starts at a very basic that agent can verify its work against something." This is the same idea as the anchor post.
+- **The bottleneck moves again, this time to compute.** CI now costs "as much as tokens." A CI vendor quoted roughly **$13M/year**, so CodeRabbit built its own, which Gill expects to cost about 50% less. Then GCP ran out of CPU capacity. Developer laptops can run only three or four agent sessions before local unit tests slow them to a halt.
+- **His headline:** "the human code review is dead, but the human review is not dead." People decide *whether* to ship and *how risky* a change is, at the level of a **release**, not by reading diffs (Module 4).
+- **A different guardrail:** "our goal is not to prevent every outage. It's to make sure that the **exposure time** of something bad happening in production is as little as possible." Doing that requires agents watching production.
+
+The two sources agree on the main point. Humans move from reading diffs to defining "done" and checking evidence. They differ on where the remaining human review sits (Module 4) and on what the guardrail measures:
+
+| Guardrail | Anthropic | CodeRabbit |
+|---|---|---|
+| Primary | Revert and incident **rate** must not rise | Bad-code **exposure time** in prod must stay small |
+| Implies investing in | Catching bugs **before** merge | Detecting and rolling back **after** merge (agents on logs and traces, 10–15 min rollback) |
+
+Be careful with Gill's quality claim. He says the defect rate is going down, then adds "I still have to measure it." Treat that as a hypothesis, not evidence.
+
 ## Where the reviewer agent fits
 
 The reviewer agent is **one** verification loop among several (Module 2). It is the loop that:

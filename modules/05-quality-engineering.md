@@ -88,6 +88,20 @@ flowchart LR
 | Manual exploratory testing | Directs **agent-driven exploratory testing** (Chrome, mobile MCP, computer use) and reviews the evidence |
 | Fights flaky tests | Enforces the **flaky-test policy**: no sleeps, no retry-until-green; delete and document |
 
+## QE extends into production
+
+In the Pragmatic Engineer episode, Orosz sums up Gill's approach: the verification loop and the "observability layer should also likely be tied. It's all part of the QA." When you ship more changes, you ship more defects even if the defect *rate* stays flat. So part of QE's job now runs after merge:
+
+| Pre-merge QE (this course so far) | Post-merge QE (factory view) |
+|---|---|
+| Reviewer recall and precision | **Exposure time:** how long bad code is live before it's detected and rolled back |
+| Eval sets from past incidents | **Regression → PR attribution**, which feeds both eval sets and the driving-license strikes |
+| Gate modes | Progressive rollout gates: an agent widens the rollout only while metrics stay stable |
+| Alert rules | Agents reading **logs and traces**, because "alerts are limited by your imagination" |
+| Test suite ownership | **Janitorial agents:** deslopping tests, removing flaky tests, keeping CI time under budget |
+
+Regression → PR attribution is especially useful for QE. A single pipeline produces **eval positives** for the reviewer (Module 6), **strikes** for author trust (Module 4) and **exposure-time** data for the guardrail (Module 1).
+
 ## The evidence standard: QE's most useful deliverable
 
 People now review **evidence**, not diffs. QE should define what evidence each tier needs, so "approve" means the same thing for everyone.

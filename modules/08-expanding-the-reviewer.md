@@ -116,6 +116,22 @@ A pruning review, monthly or quarterly:
 | REVIEW.md > ~150 lines | Split by area into included files; drop stale rules |
 | Eval case no longer reproducible (code deleted) | Archive it, keep a note |
 
+## Fine-tune, or change context and config?
+
+CodeRabbit **used to fine-tune its review models and stopped**: "the frontier was moving faster than we could maintain those fine-tuned [models]... the shelf life of those investments were very short." Gill says the effort now goes into "**fine-tuning the harness**": the right context, code graphs and semantic analysis, and routing each workload to a model ([Pragmatic Engineer episode](https://newsletter.pragmaticengineer.com/p/software-factories-and-code-reviews)). He adds that fine-tuning might still pay if you had a data stream the labs don't train on. Code isn't that.
+
+That fits the Anthropic approach, where most expansion happens through **context and config** (REVIEW.md, checklist items, finder lenses), not model weights.
+
+| Expansion lever | Survives a model upgrade? | Cost to change | Prefer when |
+|---|---|---|---|
+| REVIEW.md rule / checklist item | ✅ | Minutes | Almost always |
+| Finder lens / prompt | Mostly. Re-run the eval | Hours | New category of concern |
+| Tool access (run tests, read logs) | ✅ | Days | The reviewer needs facts it can't read from code |
+| Model routing (which model for which stage) | ✅ Re-evaluate each slot | Hours | A new model is cheaper or better for one stage |
+| Fine-tuned model | ❌ Redo it per base model | Weeks | Rarely. Only for a stable, narrow task with lots of labels the labs don't have |
+
+Whatever you choose, a **model upgrade is an expansion** and goes through the eval diff report.
+
 ## Versioning
 
 Treat reviewer config as a versioned product: a REVIEW.md changelog, an eval report per version, the model ID pinned in config, and the ability to roll back to v(n−1) in minutes.

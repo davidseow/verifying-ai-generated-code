@@ -8,6 +8,10 @@ Gathered 24 Nov 2026. **Primary** means Anthropic's own posts or docs. **Seconda
 - [How the Claude Code team does code review](https://claude.dev/blog/solving-code-review-at-anthropic/). 15 Oct 2026. Find/Verify/Rank pipeline, risk tiers, round caps, incident/revert eval set, convergence metrics.
 - [Code Review docs](https://code.claude.com/docs/en/code-review). REVIEW.md, severity labels, base-branch reading rules, presentation of findings.
 
+## Practitioner perspective
+
+- [Pragmatic Engineer: Software factories and code reviews with Harjot Gill](https://newsletter.pragmaticengineer.com/p/software-factories-and-code-reviews). Gergely Orosz, 18 Nov 2026. CodeRabbit's "software factory": 5,000+ PRs a month from ~40 engineers, ~$250K/month AI spend, verification layers (TLA+, deterministic simulation, API emulation, dev envs, agent-watched rollouts), release-level review, the "review exempt" list with strikes, and the decision to stop fine-tuning review models. The full transcript was read in the browser (the page loads it client-side). It is auto-generated and has transcription errors: "hardness" means *harness*, "Harjit" means Harjot, and model names are garbled. Quotes in these modules are lightly corrected for that. Clarifications from the transcript: the ~$250–275K/month is **Gill's personal** spend, while the company spends "several million dollars a month." 5,000+ PRs/month is Gill's personal count, and 5,000+/week is company commits. The CI saving (~50%) is unconfirmed ("I have to see"). His falling-defect-rate claim is explicitly unmeasured.
+
 ## Secondary: AI review accuracy and benchmarks
 
 - [Augment: AI code review accuracy](https://www.augmentcode.com/guides/ai-code-review-accuracy)
